@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: lib/json-20211205.jar lib/json-simple-1.1.1.jar
+Main-Class: server.DictServer
+
