@@ -7,6 +7,7 @@
  */
 package server;
 import java.io.BufferedReader;
+import status.ExceptionCode;
 import java.io.BufferedWriter;
 import java.io.FileReader;
 import java.io.FileWriter;
@@ -22,7 +23,7 @@ import java.io.FileOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.HashMap;
-import status.StatusCode;
+import status.OperationCode;
 public class Dictionary{
 	private String path = "dict.dat";
 	private HashMap<String, ArrayList> dictionary;
@@ -97,11 +98,11 @@ public class Dictionary{
 		System.out.println(meanings);
 		// if the word exists in dictionary
 		if (dictionary.containsKey(word)) {
-			return StatusCode.EXIST;
+			return ExceptionCode.EXIST;
 		}
-		// if there is no any meanings input: return status 13
+		// if there is no any meanings input
 		if (meanings.isEmpty()) {
-			return StatusCode.EMPTY;
+			return ExceptionCode.EMPTY;
 		}
 		// if success: return status 1
 		else {
@@ -113,7 +114,7 @@ public class Dictionary{
 				}catch(Exception e) {
 					e.printStackTrace();
 				}
-				return StatusCode.SUCCESS;
+				return ExceptionCode.SUCCESS;
 		}
 		
 	}
@@ -128,15 +129,16 @@ public class Dictionary{
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			return StatusCode.SUCCESS;
+			return ExceptionCode.SUCCESS;
 		}else {
-			return StatusCode.UNSEEN;
+			return ExceptionCode.UNSEEN;
 		}
 	}
 	// update the existing word
 	public synchronized int update(String word, ArrayList meanings) {
 		if (dictionary.containsKey(word)) {
 			dictionary.put(word, meanings);
+			System.out.println("word"+dictionary.get(word));
 			try {
 				ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(path));
 				out.writeObject(dictionary);
@@ -144,9 +146,9 @@ public class Dictionary{
 			}catch(Exception e) {
 				e.printStackTrace();
 			}
-			return StatusCode.SUCCESS;
+			return ExceptionCode.SUCCESS;
 		}else {
-			return StatusCode.UNSEEN;
+			return ExceptionCode.UNSEEN;
 		}
 	}
 

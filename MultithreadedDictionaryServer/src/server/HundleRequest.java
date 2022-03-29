@@ -1,5 +1,6 @@
 package server;
-import status.StatusCode;
+import status.ExceptionCode;
+import status.OperationCode;
 import server.DictServer;
 
 import java.io.BufferedReader;
@@ -9,8 +10,11 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import status.StatusCode;
+import java.util.Date;
+
+import status.OperationCode;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
@@ -31,7 +35,7 @@ public class HundleRequest extends Thread{
 		reply.put("meanings", meanings);
 		return reply;
 	}
-		// parse string request to json
+	// parse string request to json
 	public JSONObject parseRequest(String res) {
 		JSONObject resString = null;
 		try {
@@ -42,21 +46,24 @@ public class HundleRequest extends Thread{
 		}
 		return resString;	
 	}
-
+	// convert status id to string
 	public String status2str(int status) {
 		String str = "NULL";
 		switch(status) {
-		case StatusCode.QUERY:
+		case OperationCode.QUERY:
 			str = "QUERY";
 			break;
-		case StatusCode.ADD:
+		case OperationCode.ADD:
 			str = "ADD";
 			break;
-		case StatusCode.REMOVE:
+		case OperationCode.REMOVE:
 			str = "REMOVE";
 			break;
-		case StatusCode.UPDATE:
+		case OperationCode.UPDATE:
 			str = "UPDATE";
+			break;
+		case OperationCode.DISCONNECT:
+			str = "DISCONNECT";
 			break;
 		default:
 			break;
@@ -69,65 +76,74 @@ public class HundleRequest extends Thread{
 			DataInputStream in = new DataInputStream(clientSocket.getInputStream());
 			DataOutputStream out = new DataOutputStream(clientSocket.getOutputStream());
 			
-			
+			int status = -999;
 			ArrayList meanings = new ArrayList();
-			meanings.add("Hello client, welcome to use the dictionary!");
-			int status = StatusCode.CONNECT;
-			out.writeBytes(createReply(status, meanings).toString());
-			out.flush();
 			
-			while (status!=StatusCode.ESC) {
+			while (status!=OperationCode.DISCONNECT) {
 
 			// receive the request
 			String receive = in.readUTF();
-
-			JSONObject receiveJSON = parseRequest(receive);
-
-			int operation = Integer.parseInt(receiveJSON.get("operation").toString());
 			
+			JSONObject receiveJSON = parseRequest(receive);
+			int operation = Integer.parseInt(receiveJSON.get("operation").toString());
 			String word = (String) receiveJSON.get("word");
-
 			meanings = (ArrayList) receiveJSON.get("meanings");
-			String logStr = "A client requests to " + status2str(operation) + " " + word;
+			// print the log
+			SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
+			String logStr = "Message from the client " + clientSocket.getInetAddress().getHostName() + 
+					":\nRequests to " + status2str(operation) + " " + word;
 			dictServer.printLog(logStr);
-			status = StatusCode.FAIL;	
+			
+			status = ExceptionCode.FAIL;	
 			switch(operation) {
-			case StatusCode.ESC:
-				status = StatusCode.ESC;
+			case OperationCode.DISCONNECT:
 				// say goodbye
 				break;
-			case StatusCode.QUERY:
-				
+			case OperationCode.QUERY:
 				if (dict.isWordExist(word)) {
 					meanings = dict.query(word);
-					status = StatusCode.SUCCESS;
+					status = ExceptionCode.SUCCESS;
 				}
+				else {
+					status = ExceptionCode.UNSEEN;
+				}
+				// send ACK
 				out.writeUTF(createReply(status, meanings).toString());
 				out.flush();
+				dictServer.printLog("Sent Reply!");
 				break;
-			case StatusCode.ADD:
-				
+			case OperationCode.ADD:
 				if(!dict.isWordExist(word)) {
-					System.out.println("++++++++++");
 					status = dict.add(word, meanings);
-					System.out.println(status);
+				}else {
+					status = ExceptionCode.EXIST;
 				}
+				// send ACK
 				out.writeUTF(createReply(status, null).toString());
 				out.flush();
+				dictServer.printLog("Sent Reply!");
 				break;
-			case StatusCode.REMOVE:
+			case OperationCode.REMOVE:
 				if(dict.isWordExist(word)) {
 					status = dict.remove(word);
+				}else {
+					status = ExceptionCode.UNSEEN;
 				}
+				// send ACK
 				out.writeUTF(createReply(status, null).toString());
 				out.flush();
+				dictServer.printLog("Sent Reply!");
 				break;
-			case StatusCode.UPDATE:
+			case OperationCode.UPDATE:
 				if (dict.isWordExist(word)) {
 					status = dict.update(word, meanings);
+				}else {
+					status = ExceptionCode.UNSEEN;
 				}
+				// send ACK
 				out.writeUTF(createReply(status, meanings).toString());
 				out.flush();
+				dictServer.printLog("Sent Reply!");
 				break;
 			default:
 				break;
@@ -135,6 +151,7 @@ public class HundleRequest extends Thread{
 			in.close();
 			out.close();
 			clientSocket.close();
+			
 			}catch (Exception e) {
 				e.printStackTrace();
 			}

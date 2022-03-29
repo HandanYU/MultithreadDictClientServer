@@ -1,9 +1,16 @@
 package server;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+
 import server.Dictionary;
 import server.ServerGUI;
+import status.OperationCode;
 import server.HundleRequest;
 import javax.net.ServerSocketFactory;
 public class DictServer {
@@ -19,8 +26,10 @@ public class DictServer {
 		this.ui = null;
 	}
 	public void printLog(String str) {
-		System.out.println("\n"+str);
-		ui.getLogTextArea().append("\n"+str);
+		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");//设置日期格式
+		String date_info = "["+df.format(new Date()) +"]: ";
+		System.out.println("\n"+date_info+str);
+		ui.getLogTextArea().append("\n"+date_info+str);
 	}
 	public void run() {
 		try {
@@ -31,7 +40,8 @@ public class DictServer {
 				System.out.println("Server listening for a connection");
 				Socket clientSocket = this.server.accept();
 				ClientCount++;
-				printLog("Connecting with a client.\n The current number of client is " + String.valueOf(ClientCount));
+				String connect_msg = "Connecting with a client: "+ clientSocket.getInetAddress().getHostName() + " on port" + clientSocket.getLocalPort();
+				printLog(connect_msg+"\n The current number of client is " + String.valueOf(ClientCount));
 				HundleRequest solveThread = new HundleRequest(this, clientSocket, dict);
 				solveThread.start();
 			}

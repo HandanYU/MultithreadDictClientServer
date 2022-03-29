@@ -1,5 +1,5 @@
 package client;
-
+import status.ExceptionCode;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -16,7 +16,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import status.StatusCode;
+import status.OperationCode;
+import client.DictClient;
 public class ClientRequestThread extends Thread{
 	private int operation;
 	private int port;
@@ -26,21 +27,20 @@ public class ClientRequestThread extends Thread{
 	private Socket socket;
 	private int status = -999;
 	private HashMap results;
-	public ClientRequestThread(Socket socket, int operation, String word, ArrayList<String> meanings) {
+	private DictClient client;
+	public ClientRequestThread(DictClient client, Socket socket, int operation, String word, ArrayList<String> meanings) {
+		this.client = client;
 		this.socket = socket;
 		this.operation = operation;
 		this.word = word;
 		this.meanings = meanings;
-//		socket = null;
 	}
 	// create request
 	public JSONObject createRequest() {
 		JSONObject request = new JSONObject();
-
 		request.put("operation", this.operation);
 		request.put("word", this.word);
 		request.put("meanings", this.meanings);
-
 		return request;
 	}
 	// parse string request to json
@@ -54,35 +54,35 @@ public class ClientRequestThread extends Thread{
 		}
 		return resString;	
 	}
-	public HashMap getResults() {
-		
-		return results;
-	}
+
 
 	public void run() {
+		ArrayList receive_meaning = new ArrayList();
 		try {
 			DataInputStream in = new DataInputStream(socket.getInputStream());
 			DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-			
-				
-			System.out.println(createRequest().toString());
+			// send request
 			out.writeUTF(createRequest().toString());
-			out.flush(); // send request
-			System.out.println("send!");
-			String receive = in.readUTF();
-			System.out.println("+++++++++"+receive);
-			JSONObject receiveJSON = parseRequest(receive);
-			status = Integer.parseInt(receiveJSON.get("status").toString());
-			System.out.println(status);
-			if (status == StatusCode.SUCCESS) {
-				meanings = (ArrayList) receiveJSON.get("meanings");
-			}
-			if (status == StatusCode.ESC) {
+			out.flush(); 
+			// print log
+			client.printLog("**Send Message**", createRequest().toString());
+			// disconnect
+			if (this.operation == OperationCode.DISCONNECT) {
 				in.close();
 				out.close();
+				client.printLog("DISCONNECT", "Closed...");
+				socket.close();
+				System.exit(-1);
 			}
-			
-			
+			// get reply
+			String receive = in.readUTF();
+			client.printLog("==Message received==", receive);
+			JSONObject receiveJSON = parseRequest(receive);
+			status = Integer.parseInt(receiveJSON.get("status").toString());
+			if (status == ExceptionCode.SUCCESS) {
+				receive_meaning = (ArrayList) receiveJSON.get("meanings");
+			}
+
 		}catch(UnknownHostException e){
 			e.printStackTrace();
 		}
@@ -92,8 +92,12 @@ public class ClientRequestThread extends Thread{
 		}
 		results = new HashMap();
 		results.put("status", status);
-		results.put("meanings", meanings);
-		System.out.println("_____________"+results);
+		results.put("meanings", receive_meaning);
+		
+	}
+	public HashMap getResults() {
+		
+		return this.results;
 	}
 	
 }
